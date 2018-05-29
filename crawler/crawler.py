@@ -52,6 +52,9 @@ def spotify_get_popular_songs(artist):
     # 1. search for artists by name
     ax = g_spotify.get('search', { 'q': artist, 'type': 'artist' })
     ax = ax['artists']['items']
+    if len(ax) == 0:
+        return None
+
     max_followers = max(map(lambda x: x['followers']['total'], ax))
     max_artist_id = None
     for x in ax:
@@ -80,7 +83,7 @@ def genius_get_lyrics_path(artist, song):
 
 def genius_get_lyrics_path2(artist, song):
     headers = { 'Authorization': 'Bearer %s' % g_token }
-    songs_found = requests.get('https://api.genius.com/search?q=%s' % artist+' '+song, headers=headers).json()
+    songs_found = requests.get('https://api.genius.com/search', { 'q': artist+' '+song } , headers=headers).json()
     for hit in songs_found['response']['hits']:
         if hit['type'] == 'song' and hit['result']['primary_artist']['name'].lower() == artist.lower():
             return hit['result']['path']
@@ -180,6 +183,14 @@ class LyricsDb:
         query = 'SELECT artists.id, artists.name, g1.name AS genre, g2.name AS parent_genre FROM artists JOIN genres g1 ON artists.genre_id = g1.id LEFT JOIN genres g2 ON g1.parent_id = g2.id'
         return list(self.cursor.execute(query))
     
+    def get_genres(self):
+        query = 'SELECT name FROM genres'
+        return list(map(lambda x: x[0], self.cursor.execute(query)))
+    
+    def get_lyrics_for_genre(self, genre_name):
+        query = 'SELECT lyrics FROM songs WHERE artist_id IN (SELECT id FROM artists WHERE genre_id IN (SELECT id FROM genres WHERE name = ?))'
+        return list(map(lambda x: x[0].split(), self.cursor.execute(query, (genre_name,))))
+    
     def get_songs(self):
         query = '''SELECT songs.id, songs.name AS song_name, artists.name AS artist_name, songs.lyrics, g1.name AS genre, g2.name AS parent_genre
             FROM songs
@@ -188,6 +199,11 @@ class LyricsDb:
             JOIN genres g2 ON g2.id = g1.parent_id
         '''
         return list(self.cursor.execute(query))
+    
+    def dump_lyrics(self, genre):
+        query = 'SELECT lyrics FROM songs WHERE artist_id IN (SELECT id FROM artists WHERE genre_id IN (SELECT id FROM genres WHERE name=?))'
+        lyrics = list(self.cursor.execute(query, (genre,)))
+        return '\n'.join(list(map(lambda x: x[0], lyrics)))
 
 
 ### CRAWLING ###
@@ -197,8 +213,8 @@ class LyricsDb:
 # band, no more than <limit> lyrics is selected
 # save everything to the database
 def crawle_genres(db: LyricsDb, genres, limit_lyrics_for_genre, limit_lyrics_for_artist):
-    db.drop_database()
-    db.create_database()
+    # db.drop_database()
+    # db.create_database()
     artists_by_genre = get_singlegenre_artists(genres, limit_lyrics_for_genre)
     for genre in genres:
         genre_id = db.insert_genre(genre, None)
@@ -256,7 +272,5 @@ def get_songs_for_artist(artist, limit):
         lyr_songs.append((song, lyrics))
     return lyr_songs
 
-def main():
-    logging.getLogger().setLevel(logging.INFO)
-    db = LyricsDb('db.sqlite3')
-    crawle_genres(db, ['metal', 'rock', 'hip-hop', 'country', 'electronic', 'reggae', 'new age', 'blues', 'pop' ], 150, 150)
+if __name__ == '__main__':
+   db = LyricsDb('db.sqlite3')
