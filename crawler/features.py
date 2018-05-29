@@ -14,7 +14,8 @@ class LyricatorFeatures:
     
     def get_features(self, lyrics):
         feats = self.call_python_version('2.7', 'lyricator', 'run_emotuslite', (" ".join(lyrics),))
-        assert len(feats) == 3
+        if len(feats) == 0:
+            feats = [0, 0, 0]
         return list(enumerate(feats))
 
     def call_python_version(self, Version, Module, Function, ArgumentList):
@@ -41,6 +42,15 @@ class BagOfWordsFeatures:
         f = self._if_idf[ self._dictionary.doc2bow(lyrics) ]
         assert len(f) > 0
         return f
+
+class BagOfWordsReducedFeatures:
+    def __init__(self, texts):
+        self._bow = BagOfWordsFeatures(texts)
+        self._lsi = models.LsiModel(self._bow._if_idf[self._bow._corpus], num_topics=100)
+    
+    def get_features(self, lyrics):
+        return self._lsi[self._bow.get_features(lyrics)]
+    
 
 class Doc2VecFeatures:
     def __init__(self, texts):
