@@ -8,16 +8,22 @@ def filter_stop_words(texts):
     filter_text = lambda text: list(filter(lambda w: w not in g_stop_words, text))
     return list(map(filter_text, texts))
 
+def sparse_to_list(sparse, total_len, default=0):
+    l = total_len * [default]
+    for idx, val in sparse:
+        l[idx] = val
+    return l
+
 class LyricatorFeatures:
     def __init__(self, texts):
         self._gw = execnet.makegateway("popen//python=python%s" % '2.7')
     
     def get_features(self, lyrics):
         feats = self.call_python_version('lyricator', 'run_emotuslite', (" ".join(lyrics),))
-        print("getting features for", lyrics[:4])
         if len(feats) == 0:
-            feats = [0, 0, 0]
-        return list(enumerate(feats))
+            return [0, 0, 0]
+        else:
+            return feats
 
     def call_python_version(self, Module, Function, ArgumentList):
         channel = self._gw.remote_exec("""
@@ -39,9 +45,11 @@ class BagOfWordsFeatures:
     def get_features(self, lyrics):
         ''' lyrics: list of words '''
 
-        f = self._if_idf[ self._dictionary.doc2bow(lyrics) ]
-        assert len(f) > 0
-        return f
+        return sparse_to_list(self._get_features_sparse(lyrics), len(self._dictionary))
+    
+    def _get_features_sparse(self, lyrics):
+        return self._if_idf[ self._dictionary.doc2bow(lyrics) ]
+
 
 class BagOfWordsReducedFeatures:
     def __init__(self, texts):
@@ -49,18 +57,22 @@ class BagOfWordsReducedFeatures:
         self._lsi = models.LsiModel(self._bow._if_idf[self._bow._corpus], num_topics=100)
     
     def get_features(self, lyrics):
-        return self._lsi[self._bow.get_features(lyrics)]
+        return sparse_to_list(self._lsi[self._bow._get_features_sparse(lyrics)], len(self._bow._dictionary))
     
 
 class Doc2VecFeatures:
     def __init__(self, texts):
         texts = filter_stop_words(texts)
-        self._model = models.Doc2Vec(list(map(lambda pair: TaggedDocument(pair[1], (pair[0],) ), enumerate(texts))))
+        self._dim = 100
+        self._model = models.Doc2Vec(list(map(lambda pair: TaggedDocument(pair[1], (pair[0],) ), enumerate(texts))), num_topics=self._dim)
     
     def get_features(self, lyrics):
         lyrics = list(filter(lambda word: word in self._model.wv, lyrics))
-        avg = sum(map(lambda word: self._model.wv[word], lyrics)) / len(lyrics)
-        return list(enumerate(list(avg)))
+        if len(lyrics) > 0:
+            avg = sum(map(lambda word: self._model.wv[word], lyrics)) / len(lyrics)
+            return list(avg)
+        else:
+            return self._dim * [0]
 
 if __name__ == '__main__':
     import crawler
