@@ -4,6 +4,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC, LinearSVC
 from random import random
+from time import time
+import pdb
 
 g_features = {
     'lyricator': LyricatorFeatures,
@@ -36,12 +38,14 @@ def split_train_test(lyrics, genres):
     test_lyrics = []
     test_genres = []
     for i in range(len(lyrics)):
-        if random() < 0.8:
+        if random() < 0.02:
             lyr = train_lyrics
             gen = train_genres
-        else:
+        elif random() < 0.03:
             lyr = test_lyrics
             gen = test_genres
+        else:
+            continue
         lyr.append(lyrics[i])
         gen.append(genres[i])
     
@@ -51,10 +55,17 @@ def split_train_test(lyrics, genres):
 def test(features_class, classifier_class):
     train_lyrics, train_genres, test_lyrics, test_genres = split_train_test(g_lyrics, g_genres)
 
+    time_start = time()
+    print("making features")
     feature_maker = features_class(train_lyrics)
     train_features = list(map(lambda text: feature_maker.get_features(text), train_lyrics))
+    time_features = time() - time_start
+    pdb.set_trace()
+
+    print("fitting classifier")
     classifier = classifier_class()
     classifier.fit(train_features, train_genres)
+    time_train = time() - time_features
 
     num_good = 0
     num_bad = 0
@@ -66,5 +77,6 @@ def test(features_class, classifier_class):
             num_good += 1
         else:
             num_bad += 1
+    time_predict = time() - time_train
 
-    return num_good / (num_good + num_bad)
+    return num_good / (num_good + num_bad), int(time_features), int(time_train), int(time_predict)

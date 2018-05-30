@@ -10,17 +10,17 @@ def filter_stop_words(texts):
 
 class LyricatorFeatures:
     def __init__(self, texts):
-        pass
+        self._gw = execnet.makegateway("popen//python=python%s" % '2.7')
     
     def get_features(self, lyrics):
-        feats = self.call_python_version('2.7', 'lyricator', 'run_emotuslite', (" ".join(lyrics),))
+        feats = self.call_python_version('lyricator', 'run_emotuslite', (" ".join(lyrics),))
+        print("getting features for", lyrics[:4])
         if len(feats) == 0:
             feats = [0, 0, 0]
         return list(enumerate(feats))
 
-    def call_python_version(self, Version, Module, Function, ArgumentList):
-        gw      = execnet.makegateway("popen//python=python%s" % Version)
-        channel = gw.remote_exec("""
+    def call_python_version(self, Module, Function, ArgumentList):
+        channel = self._gw.remote_exec("""
             from %s import %s as the_function
             channel.send(the_function(*channel.receive()))
         """ % (Module, Function))
