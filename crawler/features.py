@@ -55,9 +55,10 @@ class BagOfWordsReducedFeatures:
     def __init__(self, texts, num_topics):
         self._bow = BagOfWordsFeatures(texts)
         self._lsi = models.LsiModel(self._bow._if_idf[self._bow._corpus], num_topics=num_topics)
+        self._dim = num_topics
 
     def get_features(self, lyrics):
-        return sparse_to_list(self._lsi[self._bow._get_features_sparse(lyrics)], len(self._bow._dictionary))
+        return sparse_to_list(self._lsi[self._bow._get_features_sparse(lyrics)], self._dim)
 
 class BagOfWordsReducedFeatures50(BagOfWordsReducedFeatures):
     def __init__(self, texts):
@@ -76,7 +77,7 @@ class Doc2VecFeatures:
     def __init__(self, texts, dim):
         texts = filter_stop_words(texts)
         self._dim = dim
-        self._model = models.Doc2Vec(list(map(lambda pair: TaggedDocument(pair[1], (pair[0],) ), enumerate(texts))), num_topics=self._dim)
+        self._model = models.Doc2Vec(list(map(lambda pair: TaggedDocument(pair[1], (pair[0],) ), enumerate(texts))), vector_size=self._dim)
     
     def get_features(self, lyrics):
         lyrics = list(filter(lambda word: word in self._model.wv, lyrics))

@@ -53,7 +53,8 @@ def split_train_test(lyrics, genres):
     test_lyrics = []
     test_genres = []
     for i in range(len(lyrics)):
-        if random() < 0.8:
+        r = random()
+        if r < 0.8:
             lyr = train_lyrics
             gen = train_genres
         else:
