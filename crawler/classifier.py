@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from crawler import LyricsDb
-from features import BagOfWordsReducedFeatures, LyricatorFeatures, Doc2VecFeatures
+from features import BagOfWordsReducedFeatures50, BagOfWordsReducedFeatures100, BagOfWordsReducedFeatures200, LyricatorFeatures, Doc2VecFeatures50, Doc2VecFeatures100, Doc2VecFeatures200
 from sklearn.linear_model import LinearRegression
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC, LinearSVC
@@ -12,8 +12,12 @@ import pdb
 
 g_features = {
     'lyricator': LyricatorFeatures,
-    'bag_of_words': BagOfWordsReducedFeatures,
-    'doc2vec': Doc2VecFeatures,
+    'bag_of_words_50': BagOfWordsReducedFeatures50,
+    'bag_of_words_100': BagOfWordsReducedFeatures100,
+    'bag_of_words_200': BagOfWordsReducedFeatures200,
+    'doc2vec_50': Doc2VecFeatures50,
+    'doc2vec_100': Doc2VecFeatures100,
+    'doc2vec_200': Doc2VecFeatures200,
 }
 g_classifiers = {
     'linear': LinearRegression,
@@ -47,12 +51,15 @@ def split_train_test(lyrics, genres):
     test_lyrics = []
     test_genres = []
     for i in range(len(lyrics)):
-        if random() < 0.8:
+        r = random()
+        if r < 0.08:    # DEBUG
             lyr = train_lyrics
             gen = train_genres
-        else:
+        elif r < 0.1:
             lyr = test_lyrics
             gen = test_genres
+        else:
+            continue
         lyr.append(lyrics[i])
         gen.append(genres[i])
     
@@ -91,13 +98,13 @@ def test(features_class, classifier_class):
 if __name__ == '__main__':
     import sys
     if len(sys.argv) != 3:
-        print("usage: %s lyricator|bag_of_words|doc2vec linear|bayes|svc|linear_svc|knn" % sys.argv[0])
+        print("usage: %s %s %s" % (sys.argv[0], "|".join(g_features.keys()), "|".join(g_classifiers.keys())))
         sys.exit(1)
     
     feature_class = g_features[sys.argv[1]]
     classifier_class = g_classifiers[sys.argv[2]]
     accuracy, time_make_features, time_training, time_prediction = test(feature_class, classifier_class)
-    print("accuracy: %d" % accuracy)
+    print("accuracy: %f" % accuracy)
     print("time to make features: %d" % time_make_features)
     print("time of training: %d" % time_training)
     print("time of prediction: %d" % time_prediction)

@@ -52,18 +52,30 @@ class BagOfWordsFeatures:
 
 
 class BagOfWordsReducedFeatures:
-    def __init__(self, texts):
+    def __init__(self, texts, num_topics):
         self._bow = BagOfWordsFeatures(texts)
-        self._lsi = models.LsiModel(self._bow._if_idf[self._bow._corpus], num_topics=100)
-    
+        self._lsi = models.LsiModel(self._bow._if_idf[self._bow._corpus], num_topics=num_topics)
+
     def get_features(self, lyrics):
         return sparse_to_list(self._lsi[self._bow._get_features_sparse(lyrics)], len(self._bow._dictionary))
+
+class BagOfWordsReducedFeatures50(BagOfWordsReducedFeatures):
+    def __init__(self, texts):
+        super().__init__(texts, 50)
+
+class BagOfWordsReducedFeatures100(BagOfWordsReducedFeatures):
+    def __init__(self, texts):
+        super().__init__(texts, 100)
+
+class BagOfWordsReducedFeatures200(BagOfWordsReducedFeatures):
+    def __init__(self, texts):
+        super().__init__(texts, 200)
     
 
 class Doc2VecFeatures:
-    def __init__(self, texts):
+    def __init__(self, texts, dim):
         texts = filter_stop_words(texts)
-        self._dim = 100
+        self._dim = dim
         self._model = models.Doc2Vec(list(map(lambda pair: TaggedDocument(pair[1], (pair[0],) ), enumerate(texts))), num_topics=self._dim)
     
     def get_features(self, lyrics):
@@ -73,6 +85,20 @@ class Doc2VecFeatures:
             return list(avg)
         else:
             return self._dim * [0]
+
+
+class Doc2VecFeatures50(Doc2VecFeatures):
+    def __init__(self, texts):
+        super().__init__(texts, 50)
+
+class Doc2VecFeatures100(Doc2VecFeatures):
+    def __init__(self, texts):
+        super().__init__(texts, 100)
+
+class Doc2VecFeatures200(Doc2VecFeatures):
+    def __init__(self, texts):
+        super().__init__(texts, 200)
+
 
 if __name__ == '__main__':
     import crawler
