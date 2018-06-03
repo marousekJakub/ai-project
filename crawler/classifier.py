@@ -32,17 +32,19 @@ def load_all_lyrics():
     lyrics = []
     genres = []
     genres2num = {}
+    num2genre = []
     i = 0
     for genre in db.get_genres():
         l = db.get_lyrics_for_genre(genre)
         lyrics.extend(l)
         genres.extend(len(l) * [genre])
         genres2num[genre] = i
+        num2genre.append(genre)
         i += 1
         
-    return lyrics, genres, genres2num
+    return lyrics, genres, genres2num, num2genre
 
-g_lyrics, g_genres, g_genre2num = load_all_lyrics()
+g_lyrics, g_genres, g_genre2num, g_num2genre = load_all_lyrics()
 
 def split_train_test(lyrics, genres):
     assert len(lyrics) == len(genres)
@@ -51,15 +53,12 @@ def split_train_test(lyrics, genres):
     test_lyrics = []
     test_genres = []
     for i in range(len(lyrics)):
-        r = random()
-        if r < 0.08:    # DEBUG
+        if random() < 0.8:
             lyr = train_lyrics
             gen = train_genres
-        elif r < 0.1:
+        else:
             lyr = test_lyrics
             gen = test_genres
-        else:
-            continue
         lyr.append(lyrics[i])
         gen.append(genres[i])
     
@@ -83,17 +82,28 @@ def test(features_class, classifier_class):
 
     num_good = 0
     num_bad = 0
+    good_predict_matrix = {}
     for i in range(len(test_lyrics)):
         lyrics = test_lyrics[i]
         good_genre_num = g_genre2num[test_genres[i]]
         predicted_genre_num = int(classifier.predict([ feature_maker.get_features(lyrics) ]))
+        good_genre = test_genres[i]
+        predicted_genre = g_num2genre[predicted_genre_num] if 0 <= predicted_genre_num < len(g_num2genre) else "out-of-range"
         if good_genre_num == predicted_genre_num:
             num_good += 1
         else:
             num_bad += 1
-    time_predict = time()
+        
+        key = (good_genre, predicted_genre)
+        if key in good_predict_matrix:
+            good_predict_matrix[key] += 1
+        else:
+            good_predict_matrix[key] = 1
 
-    return num_good / (num_good + num_bad), int(time_features - time_start), int(time_train - time_features), int(time_predict - time_features)
+    time_predict = time()
+    for key in good_predict_matrix.keys():
+        good_predict_matrix[key]  /=  num_good + num_bad
+    return num_good / (num_good + num_bad), int(time_features - time_start), int(time_train - time_features), int(time_predict - time_features), good_predict_matrix
 
 if __name__ == '__main__':
     import sys
@@ -103,8 +113,12 @@ if __name__ == '__main__':
     
     feature_class = g_features[sys.argv[1]]
     classifier_class = g_classifiers[sys.argv[2]]
-    accuracy, time_make_features, time_training, time_prediction = test(feature_class, classifier_class)
+    accuracy, time_make_features, time_training, time_prediction, good_predict_matrix = test(feature_class, classifier_class)
     print("accuracy: %f" % accuracy)
     print("time to make features: %d" % time_make_features)
     print("time of training: %d" % time_training)
     print("time of prediction: %d" % time_prediction)
+    print("good-predict matrix:")
+    for key, value in good_predict_matrix.items():
+        good, predicted = key
+        print("  good=%s predicted=%s: %f" % (good, predicted, value))
